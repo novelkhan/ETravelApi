@@ -37,7 +37,7 @@ namespace ETravelApi.Services
                 await _roleManager.CreateAsync(new IdentityRole { Name = SD.ManagerRole });
                 //await _roleManager.CreateAsync(new IdentityRole { Name = SD.PlayerRole });
 
-                await _roleManager.CreateAsync(new IdentityRole { Name = SD.UserRole });
+                await _roleManager.CreateAsync(new IdentityRole { Name = SD.CustomerRole });
             }
 
             if (!_userManager.Users.AnyAsync().GetAwaiter().GetResult())
@@ -53,7 +53,7 @@ namespace ETravelApi.Services
                     EmailConfirmed = true
                 };
                 await _userManager.CreateAsync(admin, SD.AdminPassword);
-                await _userManager.AddToRolesAsync(admin, new[] { SD.AdminRole, SD.ManagerRole, SD.UserRole });
+                await _userManager.AddToRolesAsync(admin, new[] { SD.AdminRole, SD.ManagerRole, SD.CustomerRole });
                 await _userManager.AddClaimsAsync(admin, new Claim[]
                 {
                     new Claim(ClaimTypes.Email, admin.Email),

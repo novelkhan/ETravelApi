@@ -11,7 +11,7 @@ namespace ETravelApi
         public const string AdminRole = "Admin";
         public const string ManagerRole = "Manager";
         //public const string PlayerRole = "Player";
-        public const string UserRole = "User";
+        public const string CustomerRole = "Customer";
 
         //Defining The Admin User For This Application
         public const string AdminUserFirstName = "Novel";

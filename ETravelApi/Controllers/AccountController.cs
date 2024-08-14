@@ -138,7 +138,7 @@ namespace ETravelApi.Controllers
             // creates a user inside our AspNetUsers table inside our database
             var result = await _userManager.CreateAsync(userToAdd, model.Password);
             if (!result.Succeeded) return BadRequest(result.Errors);
-            await _userManager.AddToRoleAsync(userToAdd, SD.UserRole);
+            await _userManager.AddToRoleAsync(userToAdd, SD.CustomerRole);
 
             try
             {
