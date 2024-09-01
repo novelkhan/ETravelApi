@@ -16,7 +16,7 @@ namespace ETravelApi.Models
         //public string Provider { get; set; }
 
 
-        //public CustomerData CustomerData { get; set; } = new CustomerData();
+        public CustomerData CustomerData { get; set; } = new CustomerData();
 
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     }
