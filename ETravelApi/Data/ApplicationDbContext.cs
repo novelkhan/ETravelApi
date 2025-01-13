@@ -1,4 +1,5 @@
 ﻿using ETravelApi.Models;
+using ETravelApi.Models.Customer;
 using ETravelApi.Models.Package;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;

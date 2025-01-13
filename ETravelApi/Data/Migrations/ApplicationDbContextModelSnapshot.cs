@@ -22,7 +22,7 @@ namespace ETravelApi.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("ETravelApi.Models.CustomerData", b =>
+            modelBuilder.Entity("ETravelApi.Models.Customer.CustomerData", b =>
                 {
                     b.Property<int>("CustomerDataId")
                         .ValueGeneratedOnAdd()
@@ -42,7 +42,7 @@ namespace ETravelApi.Data.Migrations
                     b.ToTable("CustomerData");
                 });
 
-            modelBuilder.Entity("ETravelApi.Models.CustomerFile", b =>
+            modelBuilder.Entity("ETravelApi.Models.Customer.CustomerFile", b =>
                 {
                     b.Property<int>("CustomerFileId")
                         .ValueGeneratedOnAdd()
@@ -404,18 +404,18 @@ namespace ETravelApi.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("ETravelApi.Models.CustomerData", b =>
+            modelBuilder.Entity("ETravelApi.Models.Customer.CustomerData", b =>
                 {
                     b.HasOne("ETravelApi.Models.User", null)
                         .WithOne("CustomerData")
-                        .HasForeignKey("ETravelApi.Models.CustomerData", "UserId")
+                        .HasForeignKey("ETravelApi.Models.Customer.CustomerData", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ETravelApi.Models.CustomerFile", b =>
+            modelBuilder.Entity("ETravelApi.Models.Customer.CustomerFile", b =>
                 {
-                    b.HasOne("ETravelApi.Models.CustomerData", null)
+                    b.HasOne("ETravelApi.Models.Customer.CustomerData", null)
                         .WithMany("CustomerFiles")
                         .HasForeignKey("CustomerDataId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -502,15 +502,14 @@ namespace ETravelApi.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ETravelApi.Models.CustomerData", b =>
+            modelBuilder.Entity("ETravelApi.Models.Customer.CustomerData", b =>
                 {
                     b.Navigation("CustomerFiles");
                 });
 
             modelBuilder.Entity("ETravelApi.Models.Package.Package", b =>
                 {
-                    b.Navigation("PackageData")
-                        .IsRequired();
+                    b.Navigation("PackageData");
                 });
 
             modelBuilder.Entity("ETravelApi.Models.Package.PackageData", b =>

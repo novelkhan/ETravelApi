@@ -2,7 +2,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
 
-namespace ETravelApi.Models
+namespace ETravelApi.Models.Customer
 {
     public class CustomerData
     {

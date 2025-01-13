@@ -18,6 +18,6 @@ namespace ETravelApi.Models.Package
         public DateTime DateCreated { get; set; } = DateTime.UtcNow;
         
 
-        public PackageData PackageData { get; set; } = new PackageData();
+        public PackageData? PackageData { get; set; }
     }
 }

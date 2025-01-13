@@ -38,6 +38,7 @@ namespace ETravelApi.Services
             };
 
             var roles = await _userManager.GetRolesAsync(user);
+            
             userClaims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
             var creadentials = new SigningCredentials(_jwtKey, SecurityAlgorithms.HmacSha512Signature);

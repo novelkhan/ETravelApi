@@ -19,7 +19,7 @@ namespace ETravelApi.Models.Package
 
 
 
-        public List<PackageImage> PackageImages { get; set; } = new List<PackageImage>();
+        public List<PackageImage>? PackageImages { get; set; } = new List<PackageImage>();
 
         [Required]
         [ForeignKey("PackageId")]
