@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System;
 using System.Threading.Tasks;
 using System.Linq;
+using System.IO;
 
 namespace ETravelApi.Controllers
 {
@@ -60,13 +61,7 @@ namespace ETravelApi.Controllers
 
 
         [HttpGet("packages")]
-        public async Task<ActionResult<IEnumerable<Package>>> GetPackages()
-        
-        
-        
-        
-        
-        
+        public async Task<ActionResult<IEnumerable<Package>>> GetPackages() 
         {
             if (_context.Packages == null)
             {
@@ -132,6 +127,8 @@ namespace ETravelApi.Controllers
 
 
 
+        // PUT: api/package/package/5
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("package/{id}")]
         public async Task<IActionResult> PutPackage(int id, [FromForm] Package package)
         {
@@ -140,7 +137,7 @@ namespace ETravelApi.Controllers
                 return BadRequest(new { message = "Package ID does not match." });
             }
 
-            // Retrieve the existing package with its related data
+            // Retrieve the existing package along with related data
             var existingPackage = await _context.Packages
                 .Include(p => p.PackageData)
                 .ThenInclude(pd => pd.PackageImages)
@@ -156,7 +153,7 @@ namespace ETravelApi.Controllers
             existingPackage.Destination = package.Destination;
             existingPackage.Price = package.Price;
 
-            // Update or create PackageData if provided
+            // Update PackageData if provided
             if (package.PackageData != null)
             {
                 if (existingPackage.PackageData == null)
@@ -165,42 +162,73 @@ namespace ETravelApi.Controllers
                     {
                         Description = package.PackageData.Description,
                         ViaDestination = package.PackageData.ViaDestination,
-                        Date = package.PackageData.Date,
+                        Date = (DateTime)ParseDateSafely(package.PackageData.Date),
                         AvailableSeat = package.PackageData.AvailableSeat,
-                        PackageImages = new List<PackageImage>() // Initialize images list
+                        PackageImages = new List<PackageImage>()
                     };
                 }
                 else
                 {
                     existingPackage.PackageData.Description = package.PackageData.Description;
                     existingPackage.PackageData.ViaDestination = package.PackageData.ViaDestination;
-                    existingPackage.PackageData.Date = package.PackageData.Date;
+                    existingPackage.PackageData.Date = (DateTime)ParseDateSafely(package.PackageData.Date);
                     existingPackage.PackageData.AvailableSeat = package.PackageData.AvailableSeat;
                 }
 
-                // Update PackageImages
-                if (package.PackageData.PackageImages != null)
+                // Handle PackageImages
+                if (package.PackageData.PackageImages != null && package.PackageData.PackageImages.Any())
                 {
-                    // Remove existing images if needed
-                    _context.PackageImages.RemoveRange(existingPackage.PackageData.PackageImages);
-
-                    // Add new images
                     foreach (var newImage in package.PackageData.PackageImages)
                     {
-                        existingPackage.PackageData.PackageImages.Add(new PackageImage
+                        var existingImage = existingPackage.PackageData.PackageImages
+                            .FirstOrDefault(img => img.PackageImageId == newImage.PackageImageId);
+
+                        if (newImage.imageFile != null) // Handle newly uploaded images
                         {
-                            filename = newImage.filename,
-                            filetype = newImage.filetype,
-                            filesize = newImage.filesize,
-                            filebytes = newImage.filebytes
-                        });
+                            Console.WriteLine($"Processing new image file: {newImage.imageFile.FileName}");
+                            var imageBytes = IFormFileToBytesArray(newImage.imageFile);
+
+                            if (existingImage != null)
+                            {
+                                existingImage.filename = newImage.imageFile.FileName;
+                                existingImage.filetype = newImage.imageFile.ContentType;
+                                existingImage.filesize = ((float)newImage.imageFile.Length / 1024).ToString();
+                                existingImage.filebytes = imageBytes;
+                            }
+                            else
+                            {
+                                existingPackage.PackageData.PackageImages.Add(new PackageImage
+                                {
+                                    filename = newImage.imageFile.FileName,
+                                    filetype = newImage.imageFile.ContentType,
+                                    filesize = ((float)newImage.imageFile.Length / 1024).ToString(),
+                                    filebytes = imageBytes
+                                });
+                            }
+                        }
+                        else if (existingImage == null)
+                        {
+                            existingPackage.PackageData.PackageImages.Add(new PackageImage
+                            {
+                                filename = newImage.filename,
+                                filetype = newImage.filetype,
+                                filesize = newImage.filesize,
+                                filebytes = newImage.filebytes
+                            });
+                        }
                     }
                 }
             }
 
+            // Debugging: Log before saving changes
+            Console.WriteLine("Final state of PackageImages before saving:");
+            foreach (var image in existingPackage.PackageData.PackageImages)
+            {
+                Console.WriteLine($"Filename: {image.filename}, FileType: {image.filetype}, Bytes: {image.filebytes?.Length ?? 0}");
+            }
+
             try
             {
-                // Save changes to the database
                 await _context.SaveChangesAsync();
                 return Ok(new { message = "Package updated successfully." });
             }
@@ -209,6 +237,34 @@ namespace ETravelApi.Controllers
                 return StatusCode(500, new { message = "An error occurred while updating the package.", error = ex.Message });
             }
         }
+
+
+
+
+
+        // Helper method to parse DateTime safely
+        private DateTime? ParseDateSafely(object dateInput)
+        {
+            if (dateInput is DateTime date)
+            {
+                return date; // If already DateTime, return as is
+            }
+            else if (dateInput is string dateString && DateTime.TryParse(dateString, out var parsedDate))
+            {
+                return parsedDate; // Parse string to DateTime
+            }
+            return null; // Return null if parsing fails
+        }
+
+        // Helper method to convert IFormFile to byte array
+        public static byte[] IFormFileToBytesArray(IFormFile imageIFormFile)
+        {
+            using var ms = new MemoryStream();
+            imageIFormFile.CopyTo(ms);
+            return ms.ToArray();
+        }
+
+
 
 
 
