@@ -94,38 +94,6 @@ namespace ETravelApi.Controllers
         }
 
 
-        // PUT: api/package/package/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        //[HttpPut("package/{id}")]
-        //public async Task<IActionResult> PutPackage(int id, Package package)
-        //{
-        //    if (id != package.PackageId)
-        //    {
-        //        return BadRequest();
-        //    }
-
-        //    _context.Entry(package).State = EntityState.Modified;
-
-        //    try
-        //    {
-        //        await _context.SaveChangesAsync();
-        //    }
-        //    catch (DbUpdateConcurrencyException)
-        //    {
-        //        if (!PackageExists(id))
-        //        {
-        //            return NotFound();
-        //        }
-        //        else
-        //        {
-        //            throw;
-        //        }
-        //    }
-
-        //    return NoContent();
-        //}
-
-
 
         // PUT: api/package/package/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
@@ -153,7 +121,7 @@ namespace ETravelApi.Controllers
             existingPackage.Destination = package.Destination;
             existingPackage.Price = package.Price;
 
-            // Update PackageData if provided
+            // Update or create PackageData
             if (package.PackageData != null)
             {
                 if (existingPackage.PackageData == null)
@@ -162,7 +130,7 @@ namespace ETravelApi.Controllers
                     {
                         Description = package.PackageData.Description,
                         ViaDestination = package.PackageData.ViaDestination,
-                        Date = (DateTime)ParseDateSafely(package.PackageData.Date),
+                        Date = ParseDateSafely(package.PackageData.Date) ?? DateTime.UtcNow,
                         AvailableSeat = package.PackageData.AvailableSeat,
                         PackageImages = new List<PackageImage>()
                     };
@@ -171,64 +139,74 @@ namespace ETravelApi.Controllers
                 {
                     existingPackage.PackageData.Description = package.PackageData.Description;
                     existingPackage.PackageData.ViaDestination = package.PackageData.ViaDestination;
-                    existingPackage.PackageData.Date = (DateTime)ParseDateSafely(package.PackageData.Date);
+                    existingPackage.PackageData.Date = ParseDateSafely(package.PackageData.Date) ?? existingPackage.PackageData.Date;
                     existingPackage.PackageData.AvailableSeat = package.PackageData.AvailableSeat;
                 }
 
-                // Handle PackageImages
-                if (package.PackageData.PackageImages != null && package.PackageData.PackageImages.Any())
+                // Handle images
+                if (package.PackageData.PackageImages != null && package.PackageData.PackageImages.Count > 0)
                 {
+                    var imageIdsToKeep = package.PackageData.PackageImages
+                        .Where(img => img.PackageImageId != null)
+                        .Select(img => img.PackageImageId)
+                        .ToList();
+
+                    // Remove images not in the updated list
+                    existingPackage.PackageData.PackageImages
+                        .RemoveAll(img => !imageIdsToKeep.Contains(img.PackageImageId));
+
                     foreach (var newImage in package.PackageData.PackageImages)
                     {
-                        var existingImage = existingPackage.PackageData.PackageImages
-                            .FirstOrDefault(img => img.PackageImageId == newImage.PackageImageId);
-
-                        if (newImage.imageFile != null) // Handle newly uploaded images
+                        if (newImage.PackageImageId != null) // Existing image (to be updated)
                         {
-                            Console.WriteLine($"Processing new image file: {newImage.imageFile.FileName}");
-                            var imageBytes = IFormFileToBytesArray(newImage.imageFile);
+                            var existingImage = existingPackage.PackageData.PackageImages
+                                .FirstOrDefault(img => img.PackageImageId == newImage.PackageImageId);
 
                             if (existingImage != null)
                             {
-                                existingImage.filename = newImage.imageFile.FileName;
-                                existingImage.filetype = newImage.imageFile.ContentType;
-                                existingImage.filesize = ((float)newImage.imageFile.Length / 1024).ToString();
-                                existingImage.filebytes = imageBytes;
-                            }
-                            else
-                            {
-                                existingPackage.PackageData.PackageImages.Add(new PackageImage
+                                if (newImage.imageFile != null) // Replace with a new file
                                 {
-                                    filename = newImage.imageFile.FileName,
-                                    filetype = newImage.imageFile.ContentType,
-                                    filesize = ((float)newImage.imageFile.Length / 1024).ToString(),
-                                    filebytes = imageBytes
-                                });
+                                    var imageBytes = IFormFileToBytesArray(newImage.imageFile);
+                                    existingImage.filename = newImage.imageFile.FileName;
+                                    existingImage.filetype = newImage.imageFile.ContentType;
+                                    existingImage.filesize = ((float)newImage.imageFile.Length / 1024).ToString();
+                                    existingImage.filebytes = imageBytes;
+                                }
+                                else
+                                {
+                                    // If no new file is uploaded, just update metadata (filename, filetype, etc.)
+                                    existingImage.filename = newImage.filename;
+                                    existingImage.filetype = newImage.filetype;
+                                    existingImage.filesize = newImage.filesize;
+                                    existingImage.filebytes ??= newImage.filebytes; // Keep existing filebytes if no new file
+                                }
                             }
                         }
-                        else if (existingImage == null)
+                        else if (newImage.imageFile != null) // New image (to be added)
                         {
+                            var imageBytes = IFormFileToBytesArray(newImage.imageFile);
+
+                            // Add the new image to the database
                             existingPackage.PackageData.PackageImages.Add(new PackageImage
                             {
-                                filename = newImage.filename,
-                                filetype = newImage.filetype,
-                                filesize = newImage.filesize,
-                                filebytes = newImage.filebytes
+                                filename = newImage.imageFile.FileName,
+                                filetype = newImage.imageFile.ContentType,
+                                filesize = ((float)newImage.imageFile.Length / 1024).ToString(),
+                                filebytes = imageBytes
                             });
                         }
                     }
                 }
-            }
-
-            // Debugging: Log before saving changes
-            Console.WriteLine("Final state of PackageImages before saving:");
-            foreach (var image in existingPackage.PackageData.PackageImages)
-            {
-                Console.WriteLine($"Filename: {image.filename}, FileType: {image.filetype}, Bytes: {image.filebytes?.Length ?? 0}");
+                else
+                {
+                    // If no images are sent in the update, clear the existing images
+                    existingPackage.PackageData.PackageImages.Clear();
+                }
             }
 
             try
             {
+                // Save changes to the database
                 await _context.SaveChangesAsync();
                 return Ok(new { message = "Package updated successfully." });
             }
@@ -237,6 +215,7 @@ namespace ETravelApi.Controllers
                 return StatusCode(500, new { message = "An error occurred while updating the package.", error = ex.Message });
             }
         }
+
 
 
 
