@@ -143,11 +143,11 @@ namespace ETravelApi.Controllers
                     existingPackage.PackageData.AvailableSeat = package.PackageData.AvailableSeat;
                 }
 
-                // Handle images
-                if (package.PackageData.PackageImages != null && package.PackageData.PackageImages.Count > 0)
+                // Handle package images
+                if (package.PackageData.PackageImages != null && package.PackageData.PackageImages.Any())
                 {
                     var imageIdsToKeep = package.PackageData.PackageImages
-                        .Where(img => img.PackageImageId != null)
+                        .Where(img => img.PackageImageId > 0)
                         .Select(img => img.PackageImageId)
                         .ToList();
 
@@ -157,49 +157,49 @@ namespace ETravelApi.Controllers
 
                     foreach (var newImage in package.PackageData.PackageImages)
                     {
-                        if (newImage.PackageImageId != null) // Existing image (to be updated)
+                        if (newImage.PackageImageId > 0) // Existing image
                         {
                             var existingImage = existingPackage.PackageData.PackageImages
                                 .FirstOrDefault(img => img.PackageImageId == newImage.PackageImageId);
 
                             if (existingImage != null)
                             {
-                                if (newImage.imageFile != null) // Replace with a new file
+                                if (newImage.imageFile != null) // Replace with new file
                                 {
                                     var imageBytes = IFormFileToBytesArray(newImage.imageFile);
                                     existingImage.filename = newImage.imageFile.FileName;
                                     existingImage.filetype = newImage.imageFile.ContentType;
-                                    existingImage.filesize = ((float)newImage.imageFile.Length / 1024).ToString();
+                                    existingImage.filesize = ((float)newImage.imageFile.Length / 1024).ToString("F2");
                                     existingImage.filebytes = imageBytes;
                                 }
                                 else
                                 {
-                                    // If no new file is uploaded, just update metadata (filename, filetype, etc.)
+                                    // Update metadata only if no new file is uploaded
                                     existingImage.filename = newImage.filename;
                                     existingImage.filetype = newImage.filetype;
                                     existingImage.filesize = newImage.filesize;
-                                    existingImage.filebytes ??= newImage.filebytes; // Keep existing filebytes if no new file
+                                    existingImage.filebytes ??= newImage.filebytes;
                                 }
                             }
                         }
-                        else if (newImage.imageFile != null) // New image (to be added)
+                        else if (newImage.imageFile != null) // New image to be added
                         {
                             var imageBytes = IFormFileToBytesArray(newImage.imageFile);
 
-                            // Add the new image to the database
                             existingPackage.PackageData.PackageImages.Add(new PackageImage
                             {
                                 filename = newImage.imageFile.FileName,
                                 filetype = newImage.imageFile.ContentType,
-                                filesize = ((float)newImage.imageFile.Length / 1024).ToString(),
-                                filebytes = imageBytes
+                                filesize = ((float)newImage.imageFile.Length / 1024).ToString("F2"),
+                                filebytes = imageBytes,
+                                PackageDataId = existingPackage.PackageData.PackageDataId
                             });
                         }
                     }
                 }
                 else
                 {
-                    // If no images are sent in the update, clear the existing images
+                    // If no images are sent in the update, remove all existing images
                     existingPackage.PackageData.PackageImages.Clear();
                 }
             }
@@ -215,6 +215,7 @@ namespace ETravelApi.Controllers
                 return StatusCode(500, new { message = "An error occurred while updating the package.", error = ex.Message });
             }
         }
+
 
 
 
