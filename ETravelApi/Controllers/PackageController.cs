@@ -96,34 +96,38 @@ namespace ETravelApi.Controllers
 
 
         // PUT: api/package/package/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        // Endpoint to update an existing package by its ID
+        // Protect against overposting attacks by limiting input to expected fields
         [HttpPut("package/{id}")]
         public async Task<IActionResult> PutPackage(int id, [FromForm] Package package)
         {
+            // Validate that the ID in the route matches the package ID in the payload
             if (id != package.PackageId)
             {
                 return BadRequest(new { message = "Package ID does not match." });
             }
 
-            // Retrieve the existing package along with related data
+            // Retrieve the existing package from the database, including related data
             var existingPackage = await _context.Packages
-                .Include(p => p.PackageData)
-                .ThenInclude(pd => pd.PackageImages)
+                .Include(p => p.PackageData) // Include package details
+                .ThenInclude(pd => pd.PackageImages) // Include associated images
                 .FirstOrDefaultAsync(p => p.PackageId == id);
 
+            // If the package doesn't exist, return a 404 error
             if (existingPackage == null)
             {
                 return NotFound(new { message = "Package not found." });
             }
 
-            // Update basic package fields
+            // Update basic package properties
             existingPackage.PackageName = package.PackageName;
             existingPackage.Destination = package.Destination;
             existingPackage.Price = package.Price;
 
-            // Update or create PackageData
+            // Handle the PackageData update logic
             if (package.PackageData != null)
             {
+                // If the existing package doesn't have PackageData, create it
                 if (existingPackage.PackageData == null)
                 {
                     existingPackage.PackageData = new PackageData
@@ -132,29 +136,32 @@ namespace ETravelApi.Controllers
                         ViaDestination = package.PackageData.ViaDestination,
                         Date = ParseDateSafely(package.PackageData.Date) ?? DateTime.UtcNow,
                         AvailableSeat = package.PackageData.AvailableSeat,
-                        PackageImages = new List<PackageImage>()
+                        PackageImages = new List<PackageImage>() // Initialize empty image list
                     };
                 }
                 else
                 {
+                    // Update fields of the existing PackageData
                     existingPackage.PackageData.Description = package.PackageData.Description;
                     existingPackage.PackageData.ViaDestination = package.PackageData.ViaDestination;
                     existingPackage.PackageData.Date = ParseDateSafely(package.PackageData.Date) ?? existingPackage.PackageData.Date;
                     existingPackage.PackageData.AvailableSeat = package.PackageData.AvailableSeat;
                 }
 
-                // Handle package images
+                // Manage the package images
                 if (package.PackageData.PackageImages != null && package.PackageData.PackageImages.Any())
                 {
+                    // Get IDs of images to keep
                     var imageIdsToKeep = package.PackageData.PackageImages
                         .Where(img => img.PackageImageId > 0)
                         .Select(img => img.PackageImageId)
                         .ToList();
 
-                    // Remove images not in the updated list
+                    // Remove images that are no longer included in the update
                     existingPackage.PackageData.PackageImages
                         .RemoveAll(img => !imageIdsToKeep.Contains(img.PackageImageId));
 
+                    // Process each image in the update
                     foreach (var newImage in package.PackageData.PackageImages)
                     {
                         if (newImage.PackageImageId > 0) // Existing image
@@ -174,7 +181,7 @@ namespace ETravelApi.Controllers
                                 }
                                 else
                                 {
-                                    // Update metadata only if no new file is uploaded
+                                    // Update only metadata if no new file is uploaded
                                     existingImage.filename = newImage.filename;
                                     existingImage.filetype = newImage.filetype;
                                     existingImage.filesize = newImage.filesize;
@@ -204,9 +211,9 @@ namespace ETravelApi.Controllers
                 }
             }
 
+            // Save changes to the database and handle any errors
             try
             {
-                // Save changes to the database
                 await _context.SaveChangesAsync();
                 return Ok(new { message = "Package updated successfully." });
             }
@@ -220,29 +227,58 @@ namespace ETravelApi.Controllers
 
 
 
-
-
-        // Helper method to parse DateTime safely
+        /// <summary>
+        /// Safely parses a date from various input types.
+        /// </summary>
+        /// <param name="dateInput">The input object representing the date, which can be a DateTime or string.</param>
+        /// <returns>
+        /// A nullable DateTime:
+        /// - Returns the DateTime if the input is valid.
+        /// - Returns null if the input is invalid or cannot be parsed.
+        /// </returns>
         private DateTime? ParseDateSafely(object dateInput)
         {
+            // Check if input is already a DateTime
             if (dateInput is DateTime date)
             {
-                return date; // If already DateTime, return as is
+                return date; // Return the DateTime as is
             }
+            // Attempt to parse if the input is a string
             else if (dateInput is string dateString && DateTime.TryParse(dateString, out var parsedDate))
             {
-                return parsedDate; // Parse string to DateTime
+                return parsedDate; // Return the successfully parsed DateTime
             }
-            return null; // Return null if parsing fails
+
+            // Return null if parsing fails or input is not a valid date representation
+            return null;
         }
 
-        // Helper method to convert IFormFile to byte array
+
+
+
+        /// <summary>
+        /// Converts an IFormFile to a byte array.
+        /// </summary>
+        /// <param name="imageIFormFile">The uploaded file to be converted.</param>
+        /// <returns>A byte array containing the file's data.</returns>
         public static byte[] IFormFileToBytesArray(IFormFile imageIFormFile)
         {
-            using var ms = new MemoryStream();
-            imageIFormFile.CopyTo(ms);
-            return ms.ToArray();
+            // Ensure the file is not null before proceeding
+            if (imageIFormFile == null)
+            {
+                throw new ArgumentNullException(nameof(imageIFormFile), "The file cannot be null.");
+            }
+
+            // Create a memory stream to hold the file data
+            using var memoryStream = new MemoryStream();
+
+            // Copy the file's data into the memory stream
+            imageIFormFile.CopyTo(memoryStream);
+
+            // Return the byte array from the memory stream
+            return memoryStream.ToArray();
         }
+
 
 
 
