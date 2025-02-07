@@ -345,6 +345,8 @@ namespace ETravelApi.Controllers
                 Expires = refreshToken.DateExpiresUtc,
                 IsEssential = true,
                 HttpOnly = true,
+                Secure = true, // Ensure this is true for HTTPS
+                SameSite = SameSiteMode.None // Required for cross-site requests
             };
 
             Response.Cookies.Append(_config["JWT:CookiesKey"], refreshToken.Token, cookieOptions);
