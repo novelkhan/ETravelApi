@@ -40,6 +40,7 @@ namespace ETravelApi.Controllers
                     FirstName = member.FirstName,
                     LastName = member.LastName,
                     DateCreated = member.DateCreated,
+                    IsEmailConfirmed = member.EmailConfirmed,
                     IsLocked = _userManager.IsLockedOutAsync(member).GetAwaiter().GetResult(),
                     Roles = _userManager.GetRolesAsync(member).GetAwaiter().GetResult()
                 }).ToListAsync();
@@ -174,6 +175,50 @@ namespace ETravelApi.Controllers
             await _userManager.SetLockoutEndDateAsync(user, null);
             return NoContent();
         }
+
+
+        [HttpPut("unConfirmEmail/{id}")]
+        public async Task<IActionResult> UnConfirmEmail(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            if (IsAdminUserId(id))
+            {
+                return BadRequest(SD.SuperAdminChangeNotAllowed);
+            }
+
+            user.EmailConfirmed = false;
+            var result = await _userManager.UpdateAsync(user); // ডাটাবেসে আপডেট সেভ করা
+            if (!result.Succeeded)
+            {
+                return BadRequest(result.Errors);
+            }
+
+            return NoContent();
+        }
+
+        [HttpPut("confirmEmail/{id}")]
+        public async Task<IActionResult> ConfirmEmail(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            if (IsAdminUserId(id))
+            {
+                return BadRequest(SD.SuperAdminChangeNotAllowed);
+            }
+
+            user.EmailConfirmed = true;
+            var result = await _userManager.UpdateAsync(user); // ডাটাবেসে আপডেট সেভ করা
+            if (!result.Succeeded)
+            {
+                return BadRequest(result.Errors);
+            }
+
+            return NoContent();
+        }
+
 
         [HttpDelete("delete-member/{id}")]
         public async Task<IActionResult> DeleteMember(string id)

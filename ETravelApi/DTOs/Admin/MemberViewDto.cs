@@ -11,6 +11,7 @@ namespace ETravelApi.DTOs.Admin
         public string LastName { get; set; }
         public bool IsLocked { get; set; }
         public DateTime DateCreated { get; set; }
+        public bool IsEmailConfirmed { get; set; }
         public IEnumerable<string> Roles { get; set; }
     }
 }
