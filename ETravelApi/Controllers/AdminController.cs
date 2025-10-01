@@ -84,6 +84,7 @@ namespace ETravelApi.Controllers
                     FirstName = model.FirstName.ToLower(),
                     LastName = model.LastName.ToLower(),
                     UserName = model.UserName.ToLower(),
+                    Email = model.UserName.ToLower(),
                     EmailConfirmed = true
                 };
 
@@ -114,6 +115,7 @@ namespace ETravelApi.Controllers
                 user.FirstName = model.FirstName.ToLower();
                 user.LastName = model.LastName.ToLower();
                 user.UserName = model.UserName.ToLower();
+                user.Email = model.UserName.ToLower();
 
                 if (!string.IsNullOrEmpty(model.Password))
                 {
