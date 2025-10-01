@@ -16,7 +16,7 @@ using System.IO;
 
 namespace ETravelApi.Controllers
 {
-    [Authorize(Roles = "Admin")]
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class PackageController : ControllerBase
@@ -30,9 +30,9 @@ namespace ETravelApi.Controllers
 
 
 
-
+        [Authorize(Roles = "Admin")]
         [HttpPost("add-package")]
-        public async Task<IActionResult> AddPackage([FromBody]AddPackageDto addPackageDto)
+        public async Task<IActionResult> AddPackage([FromBody] AddPackageDto addPackageDto)
         {
             if (ModelState.IsValid)
             {
@@ -50,7 +50,7 @@ namespace ETravelApi.Controllers
 
                 // Return success response
                 //return Ok(new { message = "Package added successfully", packageId = package.PackageId });
-                return Ok(new JsonResult(new { title = "Package Added", message = $"{addPackageDto.packagename} package has been added successfully"}));
+                return Ok(new JsonResult(new { title = "Package Added", message = $"{addPackageDto.packagename} package has been added successfully" }));
             }
 
             // Return validation error response
@@ -61,7 +61,7 @@ namespace ETravelApi.Controllers
 
 
         [HttpGet("packages")]
-        public async Task<ActionResult<IEnumerable<Package>>> GetPackages() 
+        public async Task<ActionResult<IEnumerable<Package>>> GetPackages()
         {
             if (_context.Packages == null)
             {
@@ -98,6 +98,7 @@ namespace ETravelApi.Controllers
         // PUT: api/package/package/5
         // Endpoint to update an existing package by its ID
         // Protect against overposting attacks by limiting input to expected fields
+        [Authorize(Roles = "Admin")]
         [HttpPut("package/{id}")]
         public async Task<IActionResult> PutPackage(int id, [FromForm] Package package)
         {

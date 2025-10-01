@@ -11,6 +11,7 @@ namespace ETravelApi.Models.Customer
         public int CustomerDataId { get; set; }
 
         public List<CustomerFile> CustomerFiles { get; set; } = new List<CustomerFile>();
+        public List<CartItem> Cart { get; set; }
 
         [Required]
         [ForeignKey("Id")]

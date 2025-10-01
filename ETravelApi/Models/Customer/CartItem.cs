@@ -3,15 +3,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ETravelApi.Models.Customer
 {
-    public class CustomerFile
+    public class CartItem
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int CustomerFileId { get; set; }
-        public string Filename { get; set; }
-        public string Filetype { get; set; }
-        public string Filesize { get; set; }
-        public byte[] Filebytes { get; set; }
+        public int CartItemId { get; set; }
+        public int ProductId { get; set; }
+        public int Quantity { get; set; }
+
 
         [Required]
         [ForeignKey("CustomerDataId")]
