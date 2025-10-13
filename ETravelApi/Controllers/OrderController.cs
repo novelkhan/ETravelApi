@@ -74,9 +74,10 @@ namespace ETravelApi.Controllers
 
         //https://chat.deepseek.com/a/chat/s/320a9b23-f159-4589-a616-e1db1dff6476
         //https://chatgpt.com/c/67cdc0e8-1950-800b-9395-f176b7d8241f
+        //Payment guide: https://chatgpt.com/c/67c21133-2b44-8002-88a4-7576bdcc3ad1 
         [HttpPost("cart-checkout")]
         public async Task<IActionResult> CartCheckout([FromBody] int[] selectedCartItemsId)
-        {       //Payment guide: https://chatgpt.com/c/67c21133-2b44-8002-88a4-7576bdcc3ad1 
+        {
             var user = await GetCurrentUserAsync();
             if (user == null || user.CustomerData == null)
             {
@@ -95,16 +96,27 @@ namespace ETravelApi.Controllers
             var order = new Order
             {
                 CustomerId = user.Id,
+                CustomerName = $"{user.FirstName} {user.LastName}",
+                CustomerEmail = user.Email ?? string.Empty,
+                CustomerPhone = user.PhoneNumber,
                 OrderDate = DateTime.UtcNow.AddHours(6),
                 OrderItems = new List<OrderItem>(),
                 TotalAmount = 0,
                 IsPaid = true,
-                IsShipped = false
+                OrderStatus = "Processing",
+                IsTicketProvided = false,
+                IsCompleted = false,
+                IsShipped = false,
+                ShippingDate = null
             };
 
             foreach (var item in selectedCartItems)
             {
-                var product = await _context.Packages.Include(pd => pd.PackageData).ThenInclude(pi => pi.PackageImages).FirstOrDefaultAsync(p => p.PackageId == item.ProductId);
+                var product = await _context.Packages
+                    .Include(pd => pd.PackageData)
+                    .ThenInclude(pi => pi.PackageImages)
+                    .FirstOrDefaultAsync(p => p.PackageId == item.ProductId);
+
                 if (product == null) continue;
 
                 var orderItem = new OrderItem
@@ -124,7 +136,6 @@ namespace ETravelApi.Controllers
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
 
-            //await RemoveFromCart(selectedCartItemsId);
             foreach (var cartItemId in selectedCartItemsId)
             {
                 await RemoveFromCart(cartItemId);
@@ -179,7 +190,11 @@ namespace ETravelApi.Controllers
                 return Unauthorized();
             }
 
-            var product = await _context.Packages.Include(pd => pd.PackageData).ThenInclude(pi => pi.PackageImages).FirstOrDefaultAsync(p => p.PackageId == packageId);
+            var product = await _context.Packages
+                .Include(pd => pd.PackageData)
+                .ThenInclude(pi => pi.PackageImages)
+                .FirstOrDefaultAsync(p => p.PackageId == packageId);
+
             if (product == null)
             {
                 return NotFound("Package not found.");
@@ -188,6 +203,9 @@ namespace ETravelApi.Controllers
             var order = new Order
             {
                 CustomerId = user.Id,
+                CustomerName = $"{user.FirstName} {user.LastName}",
+                CustomerEmail = user.Email ?? string.Empty,
+                CustomerPhone = user.PhoneNumber,
                 OrderDate = DateTime.UtcNow.AddHours(6),
                 OrderItems = new List<OrderItem>
                 {
@@ -203,7 +221,11 @@ namespace ETravelApi.Controllers
                 },
                 TotalAmount = product.Price,
                 IsPaid = true,
-                IsShipped = false
+                OrderStatus = "Processing",
+                IsTicketProvided = false,
+                IsCompleted = false,
+                IsShipped = false,
+                ShippingDate = null
             };
 
             _context.Orders.Add(order);
@@ -273,21 +295,34 @@ namespace ETravelApi.Controllers
             {
                 return Unauthorized();
             }
-            var order = _context.Orders
+
+            var order = await _context.Orders
                 .Include(o => o.OrderItems)
-                .FirstOrDefault(o => o.OrderId == orderId && o.CustomerId == user.Id);
+                .FirstOrDefaultAsync(o => o.OrderId == orderId && o.CustomerId == user.Id);
+
             if (order == null)
             {
                 return NotFound();
             }
+
             var orderDetails = new
             {
                 orderId = order.OrderId,
+                customerId = order.CustomerId,
+                customerName = order.CustomerName,
+                customerEmail = order.CustomerEmail,
+                customerPhone = order.CustomerPhone,
                 orderDate = order.OrderDate,
                 totalAmount = order.TotalAmount,
                 isPaid = order.IsPaid,
+                orderStatus = order.OrderStatus,
+                isTicketProvided = order.IsTicketProvided,
+                ticketProvidedDate = order.TicketProvidedDate,
+                isCompleted = order.IsCompleted,
+                completedDate = order.CompletedDate,
                 isShipped = order.IsShipped,
                 shippingDate = order.ShippingDate,
+                adminNotes = order.AdminNotes,
                 orderItems = order.OrderItems.Select(oi => new
                 {
                     productId = oi.ProductId,
@@ -298,6 +333,7 @@ namespace ETravelApi.Controllers
                     totalPrice = oi.TotalPrice
                 }).ToList()
             };
+
             return Ok(orderDetails);
         }
 
@@ -311,14 +347,25 @@ namespace ETravelApi.Controllers
             {
                 return Unauthorized();
             }
-            var orders = _context.Orders
+
+            var orders = await _context.Orders
                 .Where(o => o.CustomerId == user.Id)
+                .OrderByDescending(o => o.OrderDate)
                 .Select(o => new
                 {
                     orderId = o.OrderId,
+                    customerId = o.CustomerId,
+                    customerName = o.CustomerName,
+                    customerEmail = o.CustomerEmail,
+                    customerPhone = o.CustomerPhone,
                     orderDate = o.OrderDate,
                     totalAmount = o.TotalAmount,
                     isPaid = o.IsPaid,
+                    orderStatus = o.OrderStatus,
+                    isTicketProvided = o.IsTicketProvided,
+                    ticketProvidedDate = o.TicketProvidedDate,
+                    isCompleted = o.IsCompleted,
+                    completedDate = o.CompletedDate,
                     isShipped = o.IsShipped,
                     shippingDate = o.ShippingDate,
                     orderItems = o.OrderItems.Select(oi => new
@@ -330,40 +377,37 @@ namespace ETravelApi.Controllers
                         perUnitPrice = oi.PerUnitPrice,
                         totalPrice = oi.TotalPrice
                     }).ToList()
-                }).ToList();
+                })
+                .ToListAsync();
+
             return Ok(orders);
         }
 
 
 
-        private async Task<User> GetCurrentUserAsync()
+        private async Task<User?> GetCurrentUserAsync()
         {
-            #pragma warning disable CS8603 // Possible null reference return.
             return await _userManager.Users
-                .Include(u => u.CustomerData) // Ensure CustomerData is loaded
-                .ThenInclude(cd => cd.Cart)   // Ensure Cart is loaded
+                .Include(u => u.CustomerData)
+                .ThenInclude(cd => cd.Cart)
                 .FirstOrDefaultAsync(u => u.Id == User.FindFirstValue(ClaimTypes.NameIdentifier));
-            #pragma warning restore CS8603 // Possible null reference return.
         }
 
         private async Task<IActionResult> RemoveFromCart(int cartItemId)
         {
             try
             {
-                // Validate input
                 if (cartItemId <= 0)
                 {
                     return BadRequest("Invalid cart item ID.");
                 }
 
-                // Get current user
                 var user = await GetCurrentUserAsync();
                 if (user == null || user.CustomerData == null)
                 {
                     return Unauthorized("User not found or customer data is missing.");
                 }
 
-                // Find the cart item
                 var cartItem = await _context.CartItem
                     .SingleOrDefaultAsync(m => m.CartItemId == cartItemId && m.CustomerDataId == user.CustomerData.CustomerDataId);
 
@@ -372,16 +416,13 @@ namespace ETravelApi.Controllers
                     return NotFound("Cart item not found.");
                 }
 
-                // Remove the cart item
                 _context.CartItem.Remove(cartItem);
                 await _context.SaveChangesAsync();
 
                 return Ok(new { message = "Cart item removed successfully." });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                // Log the error (optional: you can log it to a file or database if needed)
-                // For now, we are returning a generic error message
                 return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while processing your request.");
             }
         }
@@ -395,33 +436,19 @@ namespace ETravelApi.Controllers
         private string GetProductName(int packageId)
         {
             var package = _context.Packages.AsNoTracking().FirstOrDefault(m => m.PackageId == packageId);
-            return package?.PackageName ?? "";
+            return package?.PackageName ?? string.Empty;
         }
 
-        private byte[] GetProductImage(int packageId)
+        private byte[]? GetProductImage(int packageId)
         {
-            //var package = _context.Packages.Include(pd => pd.PackageData)
-            //    .AsNoTracking()
-            //    .FirstOrDefault(m => m.PackageId == packageId);
-            var package = _context.Packages.Include(pd => pd.PackageData) // Include package details
-                    .ThenInclude(pd => pd.PackageImages) // Include associated images
-                    .FirstOrDefault(p => p.PackageId == packageId);
+            var package = _context.Packages
+                .Include(pd => pd.PackageData)
+                .ThenInclude(pd => pd.PackageImages)
+                .AsNoTracking()
+                .FirstOrDefault(p => p.PackageId == packageId);
 
-            if (package == null)
+            if (package?.PackageData?.PackageImages == null || !package.PackageData.PackageImages.Any())
             {
-                Console.WriteLine($"Package with ID {packageId} not found.");
-                return null;
-            }
-
-            if (package.PackageData == null)
-            {
-                Console.WriteLine($"PackageData is null for package ID {packageId}");
-                return null;
-            }
-
-            if (package.PackageData.PackageImages == null || !package.PackageData.PackageImages.Any())
-            {
-                Console.WriteLine($"No images found for package ID {packageId}");
                 return null;
             }
 
