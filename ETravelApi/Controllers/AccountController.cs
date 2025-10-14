@@ -124,27 +124,31 @@ namespace ETravelApi.Controllers
         {
             if (await CheckEmailExistsAsync(model.Email))
             {
-                return BadRequest($"An existing account is using {model.Email}, email addres. Please try with another email address");
+                return BadRequest($"An existing account is using {model.Email}, email address. Please try with another email address");
             }
 
             var userToAdd = new User
             {
-                FirstName = model.FirstName.ToLower(),
-                LastName = model.LastName.ToLower(),
+                //FirstName = model.FirstName.ToLower(),
+                FirstName = char.ToUpper(model.FirstName[0]) + model.FirstName.Substring(1).ToLower(),
+                //LastName = model.LastName.ToLower(),
+                LastName = char.ToUpper(model.LastName[0]) + model.LastName.Substring(1).ToLower(),
                 UserName = model.Email.ToLower(),
                 Email = model.Email.ToLower(),
+                PhoneNumber = model.PhoneNumber  // Phone number যোগ করুন
             };
 
             // creates a user inside our AspNetUsers table inside our database
             var result = await _userManager.CreateAsync(userToAdd, model.Password);
             if (!result.Succeeded) return BadRequest(result.Errors);
+
             await _userManager.AddToRoleAsync(userToAdd, SD.CustomerRole);
 
             try
             {
                 if (await SendConfirmEMailAsync(userToAdd))
                 {
-                    return Ok(new JsonResult(new { title = "Account Created", message = "Your account has been created, please confrim your email address" }));
+                    return Ok(new JsonResult(new { title = "Account Created", message = "Your account has been created, please confirm your email address" }));
                 }
 
                 return BadRequest("Failed to send email. Please contact admin");
@@ -153,7 +157,6 @@ namespace ETravelApi.Controllers
             {
                 return BadRequest("Failed to send email. Please contact admin");
             }
-
         }
 
 

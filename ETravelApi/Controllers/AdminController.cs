@@ -32,13 +32,13 @@ namespace ETravelApi.Controllers
         {
             var members = await _userManager.Users
                 .Where(x => x.UserName != SD.AdminUserName)
-                // this is a projection
                 .Select(member => new MemberViewDto
                 {
                     Id = member.Id,
                     UserName = member.UserName,
                     FirstName = member.FirstName,
                     LastName = member.LastName,
+                    PhoneNumber = member.PhoneNumber,  // Phone number যোগ
                     DateCreated = member.DateCreated,
                     IsEmailConfirmed = member.EmailConfirmed,
                     IsLocked = _userManager.IsLockedOutAsync(member).GetAwaiter().GetResult(),
@@ -59,6 +59,7 @@ namespace ETravelApi.Controllers
                     UserName = m.UserName,
                     FirstName = m.FirstName,
                     LastName = m.LastName,
+                    PhoneNumber = m.PhoneNumber,  // Phone number যোগ
                     Roles = string.Join(",", _userManager.GetRolesAsync(m).GetAwaiter().GetResult())
                 }).FirstOrDefaultAsync();
 
@@ -72,7 +73,7 @@ namespace ETravelApi.Controllers
 
             if (string.IsNullOrEmpty(model.Id))
             {
-                // adding a new member
+                // Adding a new member
                 if (string.IsNullOrEmpty(model.Password) || model.Password.Length < 6)
                 {
                     ModelState.AddModelError("errors", "Password must be at least 6 characters");
@@ -81,10 +82,11 @@ namespace ETravelApi.Controllers
 
                 user = new User
                 {
-                    FirstName = model.FirstName.ToLower(),
-                    LastName = model.LastName.ToLower(),
+                    FirstName = char.ToUpper(model.FirstName[0]) + model.FirstName.Substring(1).ToLower(),
+                    LastName = char.ToUpper(model.LastName[0]) + model.LastName.Substring(1).ToLower(),
                     UserName = model.UserName.ToLower(),
                     Email = model.UserName.ToLower(),
+                    PhoneNumber = model.PhoneNumber,  // Phone number যোগ
                     EmailConfirmed = true
                 };
 
@@ -93,8 +95,7 @@ namespace ETravelApi.Controllers
             }
             else
             {
-                // editing an existing member
-
+                // Editing an existing member
                 if (!string.IsNullOrEmpty(model.Password))
                 {
                     if (model.Password.Length < 6)
@@ -112,10 +113,14 @@ namespace ETravelApi.Controllers
                 user = await _userManager.FindByIdAsync(model.Id);
                 if (user == null) return NotFound();
 
-                user.FirstName = model.FirstName.ToLower();
-                user.LastName = model.LastName.ToLower();
+                user.FirstName = char.ToUpper(model.FirstName[0]) + model.FirstName.Substring(1).ToLower();
+                user.LastName = char.ToUpper(model.LastName[0]) + model.LastName.Substring(1).ToLower();
                 user.UserName = model.UserName.ToLower();
                 user.Email = model.UserName.ToLower();
+                user.PhoneNumber = model.PhoneNumber;  // Phone number আপডেট
+
+                var updateResult = await _userManager.UpdateAsync(user);
+                if (!updateResult.Succeeded) return BadRequest(updateResult.Errors);
 
                 if (!string.IsNullOrEmpty(model.Password))
                 {
@@ -126,7 +131,7 @@ namespace ETravelApi.Controllers
 
             var userRoles = await _userManager.GetRolesAsync(user);
 
-            // removing users' existing role(s)
+            // Removing users' existing role(s)
             await _userManager.RemoveFromRolesAsync(user, userRoles);
 
             foreach (var role in model.Roles.Split(",").ToArray())
@@ -191,7 +196,7 @@ namespace ETravelApi.Controllers
             }
 
             user.EmailConfirmed = false;
-            var result = await _userManager.UpdateAsync(user); // ডাটাবেসে আপডেট সেভ করা
+            var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)
             {
                 return BadRequest(result.Errors);
@@ -212,7 +217,7 @@ namespace ETravelApi.Controllers
             }
 
             user.EmailConfirmed = true;
-            var result = await _userManager.UpdateAsync(user); // ডাটাবেসে আপডেট সেভ করা
+            var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)
             {
                 return BadRequest(result.Errors);
