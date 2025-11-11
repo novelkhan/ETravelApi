@@ -225,6 +225,44 @@ namespace ETravelApi.Controllers
         }
 
 
+        
+
+        [HttpGet("packages-with-details")]
+        public async Task<ActionResult<IEnumerable<object>>> GetPackagesWithDetails()
+        {
+            var packages = await _context.Packages
+                .Include(p => p.PackageData)
+                .ThenInclude(pd => pd.PackageImages)
+                .OrderBy(p => p.PackageId)
+                .Select(p => new
+                {
+                    packageId = p.PackageId,
+                    packageName = p.PackageName,
+                    destination = p.Destination,
+                    price = p.Price,
+                    dateCreated = p.DateCreated,
+                    packageData = p.PackageData == null ? null : new
+                    {
+                        description = p.PackageData.Description,
+                        viaDestination = p.PackageData.ViaDestination,
+                        date = p.PackageData.Date,
+                        availableSeat = p.PackageData.AvailableSeat,
+                        packageImages = p.PackageData.PackageImages.Select(img => new
+                        {
+                            packageImageId = img.PackageImageId,
+                            filename = img.filename,
+                            filetype = img.filetype,
+                            filesize = img.filesize,
+                            filebytes = img.filebytes
+                        }).ToList()
+                    }
+                })
+                .ToListAsync();
+
+            return Ok(packages);
+        }
+
+
 
 
 
